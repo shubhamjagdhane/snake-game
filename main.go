@@ -19,11 +19,16 @@ type Food struct {
 }
 
 func newFood(maxRowSize, maxColSize int) *Food {
-	return &Food{
+	f := &Food{
 		item:       '*',
 		maxRowSize: maxRowSize,
 		maxColSize: maxColSize,
 	}
+
+	// to avoid the initial row & col
+	f.PlaceFoodOnBoard()
+
+	return f
 }
 
 func (f *Food) PlaceFoodOnBoard() {
