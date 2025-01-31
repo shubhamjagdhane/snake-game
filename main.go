@@ -12,17 +12,23 @@ import (
 )
 
 type Food struct {
-	x, y int
-	item byte
+	x, y       int
+	maxRowSize int
+	maxColSize int
+	item       byte
 }
 
 func newFood(maxRowSize, maxColSize int) *Food {
 	return &Food{
-		item: '*',
-		// TODO: find the exact logic
-		x: rand.Intn(maxRowSize-2) + 1,
-		y: rand.Intn(maxColSize-2) + 1,
+		item:       '*',
+		maxRowSize: maxRowSize,
+		maxColSize: maxColSize,
 	}
+}
+
+func (f *Food) PlaceFoodOnBoard() {
+	f.x = rand.Intn(f.maxRowSize-2) + 1
+	f.y = rand.Intn(f.maxColSize-2) + 1
 }
 
 // assuming snake can only move from left to right
@@ -85,6 +91,12 @@ func (g *Game) Start(ctx context.Context) {
 	}
 }
 
+func (g *Game) RenderFood() {
+	g.board.data[g.food.x][g.food.y] = byte(EmptySpace)
+	g.food.PlaceFoodOnBoard()
+	g.board.data[g.food.x][g.food.y] = g.food.item
+}
+
 func (g *Game) RenderBoard() {
 	for h := 0; h < g.board.height; h++ {
 		for w := 0; w < g.board.width; w++ {
@@ -96,6 +108,7 @@ func (g *Game) RenderBoard() {
 
 func (g *Game) Render() {
 	g.RenderBoard()
+	g.RenderFood()
 	fmt.Fprint(os.Stdout, "\033[2J\033[1;1H")
 	fmt.Fprintln(os.Stdout, g.drawBuf.String())
 }
