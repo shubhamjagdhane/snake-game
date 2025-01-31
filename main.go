@@ -2,9 +2,13 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"math/rand"
 	"os"
+	"os/signal"
+	"syscall"
+	"time"
 )
 
 type Food struct {
@@ -68,6 +72,19 @@ func newGame(height, width int) *Game {
 	}
 }
 
+func (g *Game) Start(ctx context.Context) {
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		default:
+			g.drawBuf.Reset()
+			g.Render()
+			time.Sleep(time.Millisecond * 16)
+		}
+	}
+}
+
 func (g *Game) RenderBoard() {
 	for h := 0; h < g.board.height; h++ {
 		for w := 0; w < g.board.width; w++ {
@@ -78,6 +95,8 @@ func (g *Game) RenderBoard() {
 }
 
 func (g *Game) Render() {
+	g.RenderBoard()
+	fmt.Fprint(os.Stdout, "\033[2J\033[1;1H")
 	fmt.Fprintln(os.Stdout, g.drawBuf.String())
 }
 
@@ -102,7 +121,14 @@ func getBoard(height, width int) [][]byte {
 }
 
 func main() {
+	ctx, cancel := context.WithCancel(context.Background())
+
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, syscall.SIGTERM, syscall.SIGINT)
+
 	g := newGame(15, 35)
-	g.RenderBoard()
-	g.Render()
+	go g.Start(ctx)
+
+	<-sigChan
+	cancel()
 }
