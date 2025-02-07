@@ -38,7 +38,65 @@ func (f *Food) PlaceFoodOnBoard() {
 
 // assuming snake can only move from left to right
 type Snake struct {
-	x, y int
+	x, y                   int
+	maxRowSize, maxColSize int
+	item                   byte
+}
+
+func newSnake(maxRowSize, maxColSize int) *Snake {
+
+	return &Snake{
+		x:          rand.Intn(maxRowSize-2) + 1,
+		y:          rand.Intn(maxColSize-2) + 1,
+		maxRowSize: maxRowSize,
+		maxColSize: maxColSize,
+		item:       '-',
+	}
+}
+
+func (s *Snake) PlaceSnakeOnBoard() {
+	num := rand.Intn(200)
+	if num%2 == 0 {
+		s.BottomToTop()
+	} else if num%3 == 0 {
+		s.LeftToRight()
+	} else if num%5 == 0 {
+		s.RightToLeft()
+	} else {
+		s.TopToBottom()
+	}
+}
+
+func (s *Snake) LeftToRight() {
+	if s.y == s.maxColSize-2 {
+		s.y = 0
+	}
+	s.y += 1
+	s.item = '-'
+}
+
+func (s *Snake) RightToLeft() {
+	if s.y == 1 {
+		s.y = s.maxColSize - 2
+	}
+	s.y -= 1
+	s.item = '-'
+}
+
+func (s *Snake) BottomToTop() {
+	if s.x == 1 {
+		s.x = s.maxRowSize - 1
+	}
+	s.x -= 1
+	s.item = '|'
+}
+
+func (s *Snake) TopToBottom() {
+	if s.x == s.maxRowSize-2 {
+		s.x = 0
+	}
+	s.x += 1
+	s.item = '|'
 }
 
 type BoardItem byte
@@ -64,22 +122,24 @@ func newBoard(height, width int) *Board {
 }
 
 type Game struct {
-	height  int
-	width   int
-	food    *Food
-	snake   *Snake
-	board   *Board
-	drawBuf *bytes.Buffer
+	height            int
+	width             int
+	food              *Food
+	snake             *Snake
+	board             *Board
+	drawBuf           *bytes.Buffer
+	initialFoodRender bool
 }
 
 func newGame(height, width int) *Game {
 	return &Game{
-		height:  height,
-		width:   width,
-		food:    newFood(height, width),
-		board:   newBoard(height, width),
-		drawBuf: new(bytes.Buffer),
-		//		snake:  newSnake(),
+		height:            height,
+		width:             width,
+		food:              newFood(height, width),
+		board:             newBoard(height, width),
+		drawBuf:           new(bytes.Buffer),
+		snake:             newSnake(height, width),
+		initialFoodRender: true,
 	}
 }
 
@@ -89,17 +149,32 @@ func (g *Game) Start(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		default:
-			g.drawBuf.Reset()
 			g.Render()
-			time.Sleep(time.Millisecond * 16)
+			time.Sleep(time.Millisecond * 150)
 		}
 	}
 }
 
 func (g *Game) RenderFood() {
-	g.board.data[g.food.x][g.food.y] = byte(EmptySpace)
-	g.food.PlaceFoodOnBoard()
-	g.board.data[g.food.x][g.food.y] = g.food.item
+	if g.initialFoodRender {
+		g.board.data[g.food.x][g.food.y] = byte(EmptySpace)
+		g.food.PlaceFoodOnBoard()
+		g.board.data[g.food.x][g.food.y] = g.food.item
+		g.initialFoodRender = false
+	}
+
+	if g.snake.x == g.food.x && g.snake.y == g.food.y {
+		g.board.data[g.food.x][g.food.y] = byte(EmptySpace)
+		g.food.PlaceFoodOnBoard()
+		g.board.data[g.food.x][g.food.y] = g.food.item
+	}
+}
+
+func (g *Game) RenderSnake() {
+
+	g.board.data[g.snake.x][g.snake.y] = byte(EmptySpace)
+	g.snake.PlaceSnakeOnBoard()
+	g.board.data[g.snake.x][g.snake.y] = g.snake.item
 }
 
 func (g *Game) RenderBoard() {
@@ -112,7 +187,9 @@ func (g *Game) RenderBoard() {
 }
 
 func (g *Game) Render() {
+	g.drawBuf.Reset()
 	g.RenderBoard()
+	g.RenderSnake()
 	g.RenderFood()
 	fmt.Fprint(os.Stdout, "\033[2J\033[1;1H")
 	fmt.Fprintln(os.Stdout, g.drawBuf.String())
